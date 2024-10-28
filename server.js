@@ -3,6 +3,7 @@ import fs from "fs";
 import cors from "cors";
 import express from "express";
 import itemRoutes from "./routes/item-routes.js";
+import rbRoutes from "./routes/rb-routes.js";
 
 const PORT = process.env.PORT;
 const BACKEND_URL = process.env.BACKEND_URL;
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use("/item", itemRoutes);
+app.use("/remove-background", rbRoutes);
 
 app.get("/", (_req, res) => {
   res.sendStatus(200);
