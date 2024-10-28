@@ -1,4 +1,4 @@
-import isImage from "is-image";
+// import isImage from "is-image";
 import initKnex from "knex";
 import configuration from "../knexfile.js";
 const knex = initKnex(configuration);
@@ -8,21 +8,20 @@ const getAll = async (_req, res) => {
     const data = await knex("item");
     res.status(200).json(data);
   } catch (err) {
-    res.status(400).send(`Error retrieving items: ${err}`);
+    res.status(500).send(`Error retrieving items: ${err.message}`);
   }
 };
 
 const getOne = async (req, res) => {
   try {
-    const itemFound = await knex("item").where({ id: req.params.id });
+    const itemData = await knex("item").where({ id: req.params.id }).first();
 
-    if (itemFound.length === 0) {
+    if (!itemData) {
       return res.status(404).json({
         message: `Item with ID ${req.params.id} not found`,
       });
     }
 
-    const itemData = itemFound[0];
     res.json(itemData);
   } catch (error) {
     res.status(500).json({
@@ -32,37 +31,61 @@ const getOne = async (req, res) => {
 };
 
 const addItem = async (req, res) => {
-  if (!req.body.image) {
+  if (!req.file) {
     return res.status(400).json({
-      message: "Please provide an image for the item in the request",
+      message: "Please provide an image for the item.",
     });
   }
 
-  if (!isImage(req.body.image)) {
-    return res.status(400).json({
-      message: "The image provided is not valid",
-    });
-  }
+  const imageUrl = `/uploads/${req.file.filename}`;
 
   try {
-    const result = await knex("item").insert(req.body);
+    const [newItemId] = await knex("item").insert({
+      image: imageUrl,
+      season: req.body.season,
+      category: req.body.category,
+      color: req.body.color,
+      material: req.body.material,
+      pattern: req.body.pattern,
+      style: req.body.style,
+      fit: req.body.fit,
+      brand: req.body.brand,
+      tags: req.body.tags,
+      notes: req.body.notes,
+    });
 
-    const newItemId = result[0];
-    const createdItem = await knex("item").where({ id: newItemId });
+    const createdItem = await knex("item").where({ id: newItemId }).first();
 
     res.status(201).json(createdItem);
   } catch (error) {
     res.status(500).json({
-      message: `Unable to create new item: ${error}`,
+      message: `Unable to create new item: ${error.message}`,
     });
   }
 };
 
 const updateItem = async (req, res) => {
   try {
+    const updateData = {
+      season: req.body.season,
+      category: req.body.category,
+      color: req.body.color,
+      material: req.body.material,
+      pattern: req.body.pattern,
+      style: req.body.style,
+      fit: req.body.fit,
+      brand: req.body.brand,
+      tags: req.body.tags,
+      notes: req.body.notes,
+    };
+
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
     const rowsUpdated = await knex("item")
       .where({ id: req.params.id })
-      .update(req.body);
+      .update(updateData);
 
     if (rowsUpdated === 0) {
       return res.status(404).json({
@@ -70,9 +93,7 @@ const updateItem = async (req, res) => {
       });
     }
 
-    const updatedItem = await knex("item").where({
-      id: req.params.id,
-    });
+    const updatedItem = await knex("item").where({ id: req.params.id });
 
     res.json(updatedItem[0]);
   } catch (error) {
@@ -80,6 +101,28 @@ const updateItem = async (req, res) => {
       message: `Unable to update item with ID ${req.params.id}: ${error}`,
     });
   }
+
+  // try {
+  //   const rowsUpdated = await knex("item")
+  //     .where({ id: req.params.id })
+  //     .update(req.body);
+
+  //   if (rowsUpdated === 0) {
+  //     return res.status(404).json({
+  //       message: `Item with ID ${req.params.id} not found`,
+  //     });
+  //   }
+
+  //   const updatedItem = await knex("item").where({
+  //     id: req.params.id,
+  //   });
+
+  //   res.json(updatedItem[0]);
+  // } catch (error) {
+  //   res.status(500).json({
+  //     message: `Unable to update item with ID ${req.params.id}: ${error}`,
+  //   });
+  // }
 };
 
 const deleteItem = async (req, res) => {
@@ -97,7 +140,7 @@ const deleteItem = async (req, res) => {
     res.sendStatus(204);
   } catch (error) {
     res.status(500).json({
-      message: `Unable to delete item: ${error}`,
+      message: `Unable to delete item with ID ${req.params.id}: ${error.message}`,
     });
   }
 };
