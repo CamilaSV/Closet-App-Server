@@ -1,11 +1,26 @@
-// import isImage from "is-image";
+import fs from "fs";
 import initKnex from "knex";
 import configuration from "../knexfile.js";
 const knex = initKnex(configuration);
 
-const getAll = async (_req, res) => {
+const getAll = async (req, res) => {
+  const s = req.query.s;
+
   try {
-    const data = await knex("item");
+    const data = await knex("item").where((builder) => {
+      if (s) {
+        builder
+          .where("season", "like", `%${s}%`)
+          .orWhere("category", "like", `%${s}%`)
+          .orWhere("color", "like", `%${s}%`)
+          .orWhere("material", "like", `%${s}%`)
+          .orWhere("pattern", "like", `%${s}%`)
+          .orWhere("fit", "like", `%${s}%`)
+          .orWhere("brand", "like", `%${s}%`)
+          .orWhere("tags", "like", `%${s}%`)
+          .orWhere("notes", "like", `%${s}%`);
+      }
+    });
     res.status(200).json(data);
   } catch (err) {
     res.status(500).send(`Error retrieving items: ${err.message}`);
@@ -101,32 +116,18 @@ const updateItem = async (req, res) => {
       message: `Unable to update item with ID ${req.params.id}: ${error}`,
     });
   }
-
-  // try {
-  //   const rowsUpdated = await knex("item")
-  //     .where({ id: req.params.id })
-  //     .update(req.body);
-
-  //   if (rowsUpdated === 0) {
-  //     return res.status(404).json({
-  //       message: `Item with ID ${req.params.id} not found`,
-  //     });
-  //   }
-
-  //   const updatedItem = await knex("item").where({
-  //     id: req.params.id,
-  //   });
-
-  //   res.json(updatedItem[0]);
-  // } catch (error) {
-  //   res.status(500).json({
-  //     message: `Unable to update item with ID ${req.params.id}: ${error}`,
-  //   });
-  // }
 };
 
 const deleteItem = async (req, res) => {
   try {
+    const item = await knex("item").where({ id: req.params.id }).first();
+
+    fs.unlink(item.image.slice(1), (err) => {
+      if (err) {
+        console.error(`Error deleting image file: ${err.message}`);
+      }
+    });
+
     const rowsDeleted = await knex("item")
       .where({ id: req.params.id })
       .delete();
