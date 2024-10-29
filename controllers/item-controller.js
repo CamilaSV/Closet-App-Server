@@ -1,6 +1,8 @@
 import fs from "fs";
 import initKnex from "knex";
 import configuration from "../knexfile.js";
+import removeBackground from "./rb-controller.js";
+
 const knex = initKnex(configuration);
 
 const getAll = async (req, res) => {
@@ -15,8 +17,6 @@ const getAll = async (req, res) => {
           .orWhere("color", "like", `%${s}%`)
           .orWhere("material", "like", `%${s}%`)
           .orWhere("pattern", "like", `%${s}%`)
-          .orWhere("fit", "like", `%${s}%`)
-          .orWhere("brand", "like", `%${s}%`)
           .orWhere("tags", "like", `%${s}%`)
           .orWhere("notes", "like", `%${s}%`);
       }
@@ -52,28 +52,31 @@ const addItem = async (req, res) => {
     });
   }
 
-  const imageUrl = `/uploads/${req.file.filename}`;
+  const path = await removeBackground(req.file);
+  if (!path) {
+    console.log(path);
+    return res.status(500).json({
+      message: `Unable to remove background.`,
+    });
+  }
 
   try {
     const [newItemId] = await knex("item").insert({
-      image: imageUrl,
+      image: path,
       season: req.body.season,
       category: req.body.category,
       color: req.body.color,
       material: req.body.material,
       pattern: req.body.pattern,
-      style: req.body.style,
-      fit: req.body.fit,
-      brand: req.body.brand,
       tags: req.body.tags,
       notes: req.body.notes,
     });
 
     const createdItem = await knex("item").where({ id: newItemId }).first();
 
-    res.status(201).json(createdItem);
+    return res.status(201).json(createdItem);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: `Unable to create new item: ${error.message}`,
     });
   }
@@ -87,15 +90,19 @@ const updateItem = async (req, res) => {
       color: req.body.color,
       material: req.body.material,
       pattern: req.body.pattern,
-      style: req.body.style,
-      fit: req.body.fit,
-      brand: req.body.brand,
       tags: req.body.tags,
       notes: req.body.notes,
     };
 
     if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+      const path = await removeBackground(req.file);
+      if (!path) {
+        console.log(path);
+        return res.status(500).json({
+          message: `Unable to remove background.`,
+        });
+      }
+      updateData.image = path;
     }
 
     const rowsUpdated = await knex("item")

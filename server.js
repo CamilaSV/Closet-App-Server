@@ -3,7 +3,8 @@ import fs from "fs";
 import cors from "cors";
 import express from "express";
 import itemRoutes from "./routes/item-routes.js";
-import rbRoutes from "./routes/rb-routes.js";
+import outfitRoutes from "./routes/outfit-routes.js";
+import timeout from "connect-timeout"; //express v4
 
 const PORT = process.env.PORT;
 const BACKEND_URL = process.env.BACKEND_URL;
@@ -13,10 +14,16 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(timeout(120000));
+app.use(haltOnTimedout);
+
+function haltOnTimedout(req, _res, next) {
+  if (!req.timedout) next();
+}
 
 // Routes
 app.use("/item", itemRoutes);
-app.use("/remove-background", rbRoutes);
+app.use("/outfit", outfitRoutes);
 
 app.get("/", (_req, res) => {
   res.sendStatus(200);
